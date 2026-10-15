@@ -1,17 +1,9 @@
 {
-  "global": {
-    "image": "://microsoft.com",
+  "specific_version": {
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
     "features": {
-      "agones-sdk-server": {}
-    }
-  },
-  "scenarios": {
-    "install_specific_version": {
-      "image": "://microsoft.com",
-      "features": {
-        "agones-sdk-server": {
-          "version": "v1.61.0"
-        }
+      "agones-sdk-server": {
+        "version": "v1.61.0"
       }
     }
   }
