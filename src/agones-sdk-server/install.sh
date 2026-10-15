@@ -7,17 +7,16 @@ SYMLINK_PATH="/usr/local/bin/sdk-server"
 
 echo "Activating Devcontainer Feature: Agones SDK Server"
 
-# Ensure runtime tools are installed safely (unzip is mandatory for extraction)
+# Ensure runtime tools are installed safely
 HAS_CURL=$(type curl > /dev/null 2>&1 && echo "yes" || echo "no")
-HAS_JQ=$(type jq > /dev/null 2>&1 && echo "yes" || echo "no")
 HAS_UNZIP=$(type unzip > /dev/null 2>&1 && echo "yes" || echo "no")
 
-if [ "${HAS_CURL}" = "no" ] || [ "${HAS_JQ}" = "no" ] || [ "${HAS_UNZIP}" = "no" ]; then
-    echo "Installing missing runtime utility dependencies (curl, jq, unzip)..."
+if [ "${HAS_CURL}" = "no" ] || [ "${HAS_UNZIP}" = "no" ]; then
+    echo "Installing missing runtime utility dependencies (curl, unzip)..."
     if [ -x "$(command -v apt-get)" ]; then
-        apt-get update && apt-get install -y curl ca-certificates jq unzip
+        apt-get update && apt-get install -y curl ca-certificates unzip
     elif [ -x "$(command -v apk)" ]; then
-        apk add --no-cache curl ca-certificates jq unzip
+        apk add --no-cache curl ca-certificates unzip
     fi
 fi
 
@@ -29,16 +28,19 @@ case ${ARCH} in
     *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
 esac
 
-# Resolve version via GitHub API if "latest" requested
+# Resolve version via web redirect to avoid GitHub API rate limits
 if [ "${TARGET_VERSION}" = "latest" ]; then
-    echo "Fetching latest version string from GitHub..."
-    LATEST_JSON=$(curl -s https://github.com || echo "")
-    if [ -n "${LATEST_JSON}" ]; then
-        TARGET_VERSION=$(echo "${LATEST_JSON}" | jq -r '.tag_name')
-    else
-        echo "Error: Failed to fetch latest release metadata from GitHub API."
+    echo "Resolving latest version via GitHub web redirect..."
+    # Follow redirects and grab the final target URL location
+    FINAL_URL=$(curl -s -o /dev/null -w "%{url_effective}" https://github.com)
+    # Extract the tag string from the end of the URL (e.g., v1.61.0)
+    TARGET_VERSION="${FINAL_URL##*/}"
+    
+    if [ -z "${TARGET_VERSION}" ] || [ "${TARGET_VERSION}" = "latest" ]; then
+        echo "Error: Failed to resolve the latest version tag via web redirect."
         exit 1
     fi
+    echo "Resolved latest version to: ${TARGET_VERSION}"
 fi
 
 # Format the version tags cleanly (e.g., v1.61.0 -> 1.61.0)
@@ -57,7 +59,7 @@ ZIP_FILE="${TMP_DIR}/agones_sdk.zip"
 HTTP_STATUS=$(curl -sSL -w "%{http_code}" -o "${ZIP_FILE}" "${DOWNLOAD_URL}")
 
 if [ "${HTTP_STATUS}" -ne 200 ]; then
-    echo "Error: Failed to download asset target. GitHub API returned Status Code: ${HTTP_STATUS}"
+    echo "Error: Failed to download asset target. GitHub returned Status Code: ${HTTP_STATUS}"
     echo "Attempted URL target context: ${DOWNLOAD_URL}"
     rm -rf "${TMP_DIR}"
     exit 1
@@ -69,12 +71,10 @@ mkdir -p "${EXTRACT_DIR}"
 unzip -q "${ZIP_FILE}" -d "${EXTRACT_DIR}"
 
 # Locate the right cross-compiled target binary inside the extracted package directory tree
-# Agones packs them grouped under: bin/agonessdk-server-linux-<arch>
 TARGET_SOURCE_PATH=$(find "${EXTRACT_DIR}" -type f -name "agonessdk-server-linux-${AGONES_ARCH}" | head -n 1)
 
 if [ -z "${TARGET_SOURCE_PATH}" ] || [ ! -f "${TARGET_SOURCE_PATH}" ]; then
     echo "Error: Could not locate matching 'agonessdk-server-linux-${AGONES_ARCH}' binary within package payload."
-    ls -R "${EXTRACT_DIR}"
     rm -rf "${TMP_DIR}"
     exit 1
 fi
