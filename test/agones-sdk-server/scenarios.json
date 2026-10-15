@@ -1,0 +1,18 @@
+{
+  "global": {
+    "image": "://microsoft.com",
+    "features": {
+      "agones-sdk-server": {}
+    }
+  },
+  "scenarios": {
+    "install_specific_version": {
+      "image": "://microsoft.com",
+      "features": {
+        "agones-sdk-server": {
+          "version": "v1.61.0"
+        }
+      }
+    }
+  }
+}

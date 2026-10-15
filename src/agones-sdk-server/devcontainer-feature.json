@@ -1,0 +1,17 @@
+{
+  "id": "agones-sdk-server",
+  "version": "1.0.0",
+  "name": "Agones SDK Server",
+  "description": "Downloads and installs the Agones GameServer SDK server component into /opt.",
+  "options": {
+    "version": {
+      "type": "string",
+      "proposals": ["latest", "v1.61.0", "v1.60.0"],
+      "default": "latest",
+      "description": "Select the target Agones release version tag (e.g., v1.61.0)."
+    }
+  },
+  "installsAfter": [
+    "ghcr.io/devcontainers/features/common-utils"
+  ]
+}
