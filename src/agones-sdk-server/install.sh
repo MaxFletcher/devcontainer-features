@@ -30,23 +30,13 @@ esac
 
 # Resolve version dynamically via the official GitHub API
 if [ "${TARGET_VERSION}" = "latest" ]; then
-    echo "Resolving latest version tag dynamically via GitHub API..."
-    
-    # Use git refs/tags endpoint - returns sorted list of tags
-    TARGET_VERSION=$(curl -sSL \
-        -H "User-Agent: DevcontainerFeature-AgonesSDK" \
-        -H "Accept: application/vnd.github.v3+json" \
-        https://api.github.com/repos/agones-dev/agones/git/ref/tags/v1 | jq -r '.ref // ""' 2>/dev/null) || true
-    
-    # Actually, let's get the latest properly via tags endpoint
-    TARGET_VERSION=$(curl -sSL \
-        -H "User-Agent: DevcontainerFeature-AgonesSDK" \
-        -H "Accept: application/vnd.github.v3+json" \
-        https://api.github.com/repos/agones-dev/agones/tags 2>/dev/null \
-        | jq -r '.[0].name')
-    
-    if [ -z "${TARGET_VERSION}" ] || [ "${TARGET_VERSION}" = "null" ]; then
-        echo "Error: Failed to dynamically extract version tag from GitHub API."
+    echo "Resolving latest version tag via GitHub redirect..."
+    TARGET_VERSION=$(curl -sI -o /dev/null -w '%{redirect_url}' \
+        https://github.com/agones-dev/agones/releases/latest \
+        | grep -oE 'tag/[^/]+' | cut -d/ -f2)
+
+    if [ -z "${TARGET_VERSION}" ]; then
+        echo "Error: Failed to resolve latest version tag."
         exit 1
     fi
     echo "Successfully resolved latest version tag to: ${TARGET_VERSION}"
