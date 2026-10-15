@@ -28,16 +28,24 @@ case ${ARCH} in
     *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
 esac
 
-# Resolve version via web redirect to avoid GitHub API rate limits
+# Resolve version via git tags if "latest" requested to completely avoid API rate limits
 if [ "${TARGET_VERSION}" = "latest" ]; then
-    echo "Resolving latest version via GitHub web redirect..."
-    # Follow redirects and grab the final target URL location
-    FINAL_URL=$(curl -s -o /dev/null -w "%{url_effective}" https://github.com)
-    # Extract the tag string from the end of the URL (e.g., v1.61.0)
-    TARGET_VERSION="${FINAL_URL##*/}"
+    echo "Resolving latest version via git repository remote tags..."
     
-    if [ -z "${TARGET_VERSION}" ] || [ "${TARGET_VERSION}" = "latest" ]; then
-        echo "Error: Failed to resolve the latest version tag via web redirect."
+    # Safely ensure git tool baseline layer is present
+    if ! type git > /dev/null 2>&1; then
+        if [ -x "$(command -v apt-get)" ]; then
+            apt-get update && apt-get install -y git
+        elif [ -x "$(command -v apk)" ]; then
+            apk add --no-cache git
+        fi
+    fi
+
+    # Query tags from remote origin sorting by semantic version formats, taking the top record
+    TARGET_VERSION=$(git ls-remote --tags --refs --sort='v:refname' https://github.com | tail -n1 | awk -F/ '{print $3}')
+    
+    if [ -z "${TARGET_VERSION}" ]; then
+        echo "Error: Failed to resolve the latest version tag from remote repository."
         exit 1
     fi
     echo "Resolved latest version to: ${TARGET_VERSION}"
