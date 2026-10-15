@@ -34,9 +34,11 @@ if [ "${TARGET_VERSION}" = "latest" ]; then
     
     # Scrape the raw HTML payload from the releases endpoint path
     RELEASES_HTML=$(curl -sSL https://github.com)
-    TARGET_VERSION=$(echo "${RELEASES_HTML}" | grep -oE '/releases/tag/v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?' | head -n 1 | awk -F/ '{print $4}')
+    
+    # Extract using a broad tag match that targets the specific version string structure accurately
+    TARGET_VERSION=$(echo "${RELEASES_HTML}" | grep -oE 'href="[^"]*/releases/tag/[^"]+"' | head -n 1 | sed -E 's|.*releases/tag/([^"]+).*|\1|')
 
-    if [ -z "${TARGET_VERSION}" ]; then
+    if [ -z "${TARGET_VERSION}" ] || [[ "${TARGET_VERSION}" == *"html"* ]]; then
         echo "Error: Failed to dynamically extract version tag from web context."
         exit 1
     fi
