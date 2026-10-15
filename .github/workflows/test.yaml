@@ -22,11 +22,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 24
 
       - name: Install Devcontainers CLI
         run: npm install -g @devcontainers/cli
-        
+
       # Crucial: Fix malformed shell execution bugs caused by Windows/Git line endings
       - name: Sanitize Script Line Endings
         run: |
