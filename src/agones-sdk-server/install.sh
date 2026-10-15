@@ -32,9 +32,8 @@ esac
 if [ "${TARGET_VERSION}" = "latest" ]; then
     echo "Resolving latest version tag dynamically from releases web page..."
     
-    # Scrape the raw HTML payload from the provided releases endpoint path
-    # Look for the first release tag matching the standard semantic layout (e.g., /releases/tag/v1.61.0)
-    RELEASES_HTML=$(curl -sSL https://github.com/agones-dev/agones/releases)
+    # Scrape the raw HTML payload from the releases endpoint path
+    RELEASES_HTML=$(curl -sSL https://github.com)
     TARGET_VERSION=$(echo "${RELEASES_HTML}" | grep -oE '/releases/tag/v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?' | head -n 1 | awk -F/ '{print $4}')
 
     if [ -z "${TARGET_VERSION}" ]; then
@@ -49,7 +48,7 @@ VERSION_NUM=$(echo "${TARGET_VERSION}" | sed 's/^v//')
 
 echo "Downloading official Agones SDK distribution payload: ${TARGET_VERSION}"
 
-# Break the fields up into distinct fragments to completely prevent text combination string collisions
+# Target the official zip bundle mapped by the project deployment pipeline
 HOST_DOMAIN="https://github.com"
 URL_PATH="/agones-dev/agones/releases/download/${TARGET_VERSION}/agonessdk-server-${VERSION_NUM}.zip"
 DOWNLOAD_URL="${HOST_DOMAIN}${URL_PATH}"
@@ -73,11 +72,11 @@ EXTRACT_DIR="${TMP_DIR}/extracted"
 mkdir -p "${EXTRACT_DIR}"
 unzip -q "${ZIP_FILE}" -d "${EXTRACT_DIR}"
 
-# Locate the right cross-compiled target binary inside the extracted package directory tree
-TARGET_SOURCE_PATH=$(find "${EXTRACT_DIR}" -type f -name "agonessdk-server-linux-${AGONES_ARCH}" | head -n 1)
+# Locate the right cross-compiled target binary using the dot notation format
+TARGET_SOURCE_PATH=$(find "${EXTRACT_DIR}" -type f -name "sdk-server.linux.${AGONES_ARCH}" | head -n 1)
 
 if [ -z "${TARGET_SOURCE_PATH}" ] || [ ! -f "${TARGET_SOURCE_PATH}" ]; then
-    echo "Error: Could not locate matching 'agonessdk-server-linux-${AGONES_ARCH}' binary within package payload."
+    echo "Error: Could not locate matching 'sdk-server.linux.${AGONES_ARCH}' binary within package payload."
     rm -rf "${TMP_DIR}"
     exit 1
 fi
@@ -87,7 +86,7 @@ mkdir -p "${INSTALL_DIR}"
 TARGET_EXEC="${INSTALL_DIR}/sdk-server"
 cp "${TARGET_SOURCE_PATH}" "${TARGET_EXEC}"
 
-# Elevate process execution execution mask permissions 
+# Elevate process execution mask permissions 
 chmod 0755 "${TARGET_EXEC}"
 
 # Wire up structural system layer symlink target execution layer smoothly
