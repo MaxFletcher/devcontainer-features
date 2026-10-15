@@ -7,12 +7,18 @@ SYMLINK_PATH="/usr/local/bin/sdk-server"
 
 echo "Activating Devcontainer Feature: Agones SDK Server"
 
-# Ensure runtime prerequisites are present
-if ! type curl > /dev/null 2>&1 || ! type jq > /dev/null 2>&1; then
+# Safely check for tools without letting set -e crash the engine
+HAS_CURL=$(type curl > /dev/null 2>&1 && echo "yes" || echo "no")
+HAS_JQ=$(type jq > /dev/null 2>&1 && echo "yes" || echo "no")
+
+if [ "${HAS_CURL}" = "no" ] || [ "${HAS_JQ}" = "no" ]; then
+    echo "Installing missing dependencies..."
     if [ -x "$(command -v apt-get)" ]; then
         apt-get update && apt-get install -y curl ca-certificates jq
     elif [ -x "$(command -v apk)" ]; then
         apk add --no-cache curl ca-certificates jq
+    else
+        echo "Warning: Could not determine package manager to install curl/jq."
     fi
 fi
 
@@ -27,7 +33,14 @@ esac
 # Resolve version via GitHub API if "latest" requested
 if [ "${TARGET_VERSION}" = "latest" ]; then
     echo "Fetching latest version string from GitHub..."
-    TARGET_VERSION=$(curl -s https://github.com | jq -r '.tag_name')
+    # Run inline subshells inside conditional blocks to protect set -e
+    LATEST_JSON=$(curl -s https://github.com || echo "")
+    if [ -n "${LATEST_JSON}" ]; then
+        TARGET_VERSION=$(echo "${LATEST_JSON}" | jq -r '.tag_name')
+    else
+        echo "Error: Failed to fetch latest release metadata from GitHub API."
+        exit 1
+    fi
 fi
 
 # Clean string formatting (e.g., v1.61.0 -> 1.61.0)
@@ -45,7 +58,7 @@ TARGET_EXEC="${INSTALL_DIR}/sdk-server"
 # Download the standalone binary directly
 HTTP_STATUS=$(curl -sSL -w "%{http_code}" -o "${TARGET_EXEC}" "${DOWNLOAD_URL}")
 
-if [ "$HTTP_STATUS" -ne 200 ]; then
+if [ "${HTTP_STATUS}" -ne 200 ]; then
     echo "Error: Failed to download asset. GitHub API returned HTTP Status: ${HTTP_STATUS}"
     echo "Attempted URL: ${DOWNLOAD_URL}"
     exit 1
