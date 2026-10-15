@@ -49,10 +49,10 @@ VERSION_NUM=$(echo "${TARGET_VERSION}" | sed 's/^v//')
 
 echo "Downloading official Agones SDK distribution payload: ${TARGET_VERSION}"
 
-# Target the official zip bundle mapped by the project deployment pipeline
-# Correct syntax format ensuring curly braces encapsulate the variable names explicitly
-DOWNLOAD_URL="https://github.com{TARGET_VERSION}/agonessdk-server-${VERSION_NUM}.zip"
-
+# Break the fields up into distinct fragments to completely prevent text combination string collisions
+HOST_DOMAIN="https://github.com"
+URL_PATH="/agones-dev/agones/releases/download/${TARGET_VERSION}/agonessdk-server-${VERSION_NUM}.zip"
+DOWNLOAD_URL="${HOST_DOMAIN}${URL_PATH}"
 
 # Establish a temporary workspace environment 
 TMP_DIR=$(mktemp -d)
