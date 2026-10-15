@@ -8,6 +8,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read          # principle of least privilege
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -27,14 +29,11 @@ jobs:
       - name: Install Devcontainers CLI
         run: npm install -g @devcontainers/cli
 
-      # Crucial: Fix malformed shell execution bugs caused by Windows/Git line endings
       - name: Sanitize Script Line Endings
         run: |
           sed -i 's/\r$//' src/agones-sdk-server/install.sh
           chmod +x src/agones-sdk-server/install.sh
 
-      # By passing the unique GitHub run details via the environment, 
-      # we can append a cache-invalidation token safely when changes happen
       - name: Run Feature Scenario Tests
         run: |
           devcontainer features test \
@@ -42,7 +41,4 @@ jobs:
             --project-folder .
         env:
           DOCKER_BUILDKIT: 1
-          # The CLI passes environment variables through to the build engine context. 
-          # This acts as an automatic cache key that changes per commit.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUILD_ID: ${{ github.sha }}
