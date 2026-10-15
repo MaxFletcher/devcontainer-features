@@ -7,7 +7,7 @@ SYMLINK_PATH="/usr/local/bin/sdk-server"
 
 echo "Activating Devcontainer Feature: Agones SDK Server"
 
-# Ensure runtime tools are installed safely
+# Ensure runtime utility dependencies are installed safely
 HAS_CURL=$(type curl > /dev/null 2>&1 && echo "yes" || echo "no")
 HAS_UNZIP=$(type unzip > /dev/null 2>&1 && echo "yes" || echo "no")
 
@@ -28,30 +28,23 @@ case ${ARCH} in
     *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
 esac
 
-# Resolve version via git tags if "latest" requested to completely avoid API rate limits
+# Resolve version dynamically from the requested web releases page url context
 if [ "${TARGET_VERSION}" = "latest" ]; then
-    echo "Resolving latest version via git repository remote tags..."
+    echo "Resolving latest version tag dynamically from releases web page..."
     
-    # Safely ensure git tool baseline layer is present
-    if ! type git > /dev/null 2>&1; then
-        if [ -x "$(command -v apt-get)" ]; then
-            apt-get update && apt-get install -y git
-        elif [ -x "$(command -v apk)" ]; then
-            apk add --no-cache git
-        fi
-    fi
+    # Scrape the raw HTML payload from the provided releases endpoint path
+    # Look for the first release tag matching the standard semantic layout (e.g., /releases/tag/v1.61.0)
+    RELEASES_HTML=$(curl -sSL https://github.com/agones-dev/agones/releases)
+    TARGET_VERSION=$(echo "${RELEASES_HTML}" | grep -oE '/releases/tag/v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?' | head -n 1 | awk -F/ '{print $4}')
 
-    # Query tags from remote origin sorting by semantic version formats, taking the top record
-    TARGET_VERSION=$(git ls-remote --tags --refs --sort='v:refname' https://github.com | tail -n1 | awk -F/ '{print $3}')
-    
     if [ -z "${TARGET_VERSION}" ]; then
-        echo "Error: Failed to resolve the latest version tag from remote repository."
+        echo "Error: Failed to dynamically extract version tag from web context."
         exit 1
     fi
-    echo "Resolved latest version to: ${TARGET_VERSION}"
+    echo "Successfully resolved latest version tag to: ${TARGET_VERSION}"
 fi
 
-# Format the version tags cleanly (e.g., v1.61.0 -> 1.61.0)
+# Format the version numbers cleanly (e.g., v1.61.0 -> 1.61.0)
 VERSION_NUM=$(echo "${TARGET_VERSION}" | sed 's/^v//')
 
 echo "Downloading official Agones SDK distribution payload: ${TARGET_VERSION}"
