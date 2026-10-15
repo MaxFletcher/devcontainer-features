@@ -29,11 +29,6 @@ jobs:
       - name: Install Devcontainers CLI
         run: npm install -g @devcontainers/cli
 
-      - name: Sanitize Script Line Endings
-        run: |
-          sed -i 's/\r$//' src/agones-sdk-server/install.sh
-          chmod +x src/agones-sdk-server/install.sh
-
       - name: Run Feature Scenario Tests
         run: |
           devcontainer features test \
