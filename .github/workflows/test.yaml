@@ -9,24 +9,34 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Check out the repository source tree
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Step 2: Install Node.js to enable the devcontainers tooling
+      # Sets up Docker Buildx cleanly with the native GitHub cache mapping keys
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      # Step 3: Install the official Devcontainers CLI layer
       - name: Install Devcontainers CLI
         run: npm install -g @devcontainers/cli
 
-      # Step 4: Run the specific test suites you configured
+      # By passing the unique GitHub run details via the environment, 
+      # we can append a cache-invalidation token safely when changes happen
       - name: Run Feature Scenario Tests
         run: |
           devcontainer features test \
             --features agones-sdk-server \
             --project-folder .
-
+        env:
+          DOCKER_BUILDKIT: 1
+          # The CLI passes environment variables through to the build engine context. 
+          # This acts as an automatic cache key that changes per commit.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_ID: ${{ github.sha }}
