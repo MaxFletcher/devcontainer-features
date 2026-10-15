@@ -24,9 +24,9 @@ jobs:
         run: npm install -g @devcontainers/cli
 
       # Step 4: Run the specific test suites you configured
-      # Using explicit targeting avoids default global directory scanning loops
       - name: Run Feature Scenario Tests
         run: |
           devcontainer features test \
             --features agones-sdk-server \
-            --base-path .
+            --project-folder .
+
