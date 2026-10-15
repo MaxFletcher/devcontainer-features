@@ -1,0 +1,1 @@
+A feature that installs the agones sdk server to /opt
