@@ -28,18 +28,32 @@ case ${ARCH} in
     *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
 esac
 
-# Resolve version dynamically from the requested web releases page url context
+# Resolve version dynamically via the official GitHub API
 if [ "${TARGET_VERSION}" = "latest" ]; then
-    echo "Resolving latest version tag dynamically from releases web page..."
+    echo "Resolving latest version tag dynamically via GitHub API..."
     
-    # Scrape the raw HTML payload from the releases endpoint path
-    RELEASES_HTML=$(curl -sSL https://github.com)
-    
-    # Extract using a broad tag match that targets the specific version string structure accurately
-    TARGET_VERSION=$(echo "${RELEASES_HTML}" | grep -oE 'href="[^"]*/releases/tag/[^"]+"' | head -n 1 | sed -E 's|.*releases/tag/([^"]+).*|\1|')
+    # Query latest release (preferred - gives official tagged releases)
+    API_RESPONSE=$(curl -sSL \
+        -H "User-Agent: DevcontainerFeature-AgonesSDK" \
+        -H "Accept: application/vnd.github.v3+json" \
+        https://api.github.com/repos/agones-dev/agones/releases/latest || echo "")
+        
+    # Extract the exact tag name
+    TARGET_VERSION=$(echo "${API_RESPONSE}" | jq -r '.tag_name' 2>/dev/null || echo "")
 
-    if [ -z "${TARGET_VERSION}" ] || [[ "${TARGET_VERSION}" == *"html"* ]]; then
-        echo "Error: Failed to dynamically extract version tag from web context."
+    # Fallback to tags endpoint if no release exists
+    if [ -z "${TARGET_VERSION}" ] || [ "${TARGET_VERSION}" = "null" ]; then
+        echo "No release found, falling back to tags API..."
+        API_RESPONSE=$(curl -sSL \
+            -H "User-Agent: DevcontainerFeature-AgonesSDK" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/agones-dev/agones/tags || echo "")
+        TARGET_VERSION=$(echo "${API_RESPONSE}" | jq -r '.[0].name' 2>/dev/null || echo "")
+    fi
+
+    if [ -z "${TARGET_VERSION}" ] || [ "${TARGET_VERSION}" = "null" ]; then
+        echo "Error: Failed to dynamically extract version tag from GitHub API."
+        echo "API Response context: ${API_RESPONSE}"
         exit 1
     fi
     echo "Successfully resolved latest version tag to: ${TARGET_VERSION}"
